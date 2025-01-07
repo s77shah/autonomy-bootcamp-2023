@@ -21,7 +21,7 @@ from ..private.decision import base_decision
 
 class DecisionSimpleWaypoint(base_decision.BaseDecision):
     """
-    Travel to the designed waypoint.
+    Travel to the designated waypoint.
     """
 
     def __init__(self, waypoint: location.Location, acceptance_radius: float) -> None:
@@ -38,6 +38,7 @@ class DecisionSimpleWaypoint(base_decision.BaseDecision):
         # ============
 
         # Add your own
+        self.reached_waypoint = False  # Track if the waypoint has been reached
 
         # ============
         # ↑ BOOTCAMPERS MODIFY ABOVE THIS COMMENT ↑
@@ -68,7 +69,32 @@ class DecisionSimpleWaypoint(base_decision.BaseDecision):
         # ↓ BOOTCAMPERS MODIFY BELOW THIS COMMENT ↓
         # ============
 
-        # Do something based on the report and the state of this class...
+        # Calculate distance to waypoint
+        distance_to_waypoint = self.waypoint.distance_to(report.position)
+
+        # Check drone status
+        if report.status == "Landed":
+            # Drone has already landed
+            return commands.Command.create_null_command()
+
+        if self.reached_waypoint:
+            # Drone has reached the waypoint, issue land command
+            if report.status == "Halted":
+                return commands.Command.create_land_command()
+
+        if distance_to_waypoint <= self.acceptance_radius:
+            # Drone is within the acceptance radius
+            self.reached_waypoint = True
+            if report.status == "Halted":
+                return commands.Command.create_land_command()
+            else:
+                return commands.Command.create_halt_command()
+
+        # If the drone is not at the waypoint
+        if report.status == "Halted":
+            relative_x = self.waypoint.x - report.position.x
+            relative_y = self.waypoint.y - report.position.y
+            return commands.Command.create_set_relative_destination_command(relative_x, relative_y)
 
         # ============
         # ↑ BOOTCAMPERS MODIFY ABOVE THIS COMMENT ↑
